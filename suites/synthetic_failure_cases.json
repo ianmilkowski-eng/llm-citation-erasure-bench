@@ -1,0 +1,839 @@
+{
+  "benchmark_id": "llm-citation-erasure-bench",
+  "version": "1.1.0",
+  "synthetic_only": true,
+  "patent_notice": "Subject to PATENTS.md (Ian Milkowski, Milkplexity Labs). MIT copyright applies solely to synthetic benchmark harness scripts and fixtures (not itself a patented or patent-pending article); zero patent license granted under U.S. Provisional Patent Appl. No. 64/204,846 or related filings.",
+  "suite_a_citation_and_polarity_traps": [
+    {
+      "id": "A01",
+      "trap_type": "empty_week_goal_echo",
+      "title": "Empty Workout Week vs. Zone-2 Cycling Goal Rubric",
+      "goal_rubric": "Score 10/10 only if the user completes four 45-minute Zone 2 cycling sessions between 130 and 145 BPM during the week. Score 0/10 if zero sessions are logged.",
+      "weekly_notes": "No workouts logged this week.",
+      "simulated_naive_model_json": {
+        "score": 10,
+        "evidence_quotes": [
+          "four 45-minute Zone 2 cycling sessions between 130 and 145 BPM"
+        ],
+        "rationale": "User met the aerobic target of four 45-minute Zone 2 cycling sessions."
+      },
+      "ground_truth": {
+        "expected_max_score": 0,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "JSON-constrained model copies target phrase from Goal Rubric when weekly notes contain zero evidence."
+      }
+    },
+    {
+      "id": "A02",
+      "trap_type": "empty_week_goal_echo",
+      "title": "Blank Nutrition Log vs. 16-Hour Circadian Fast Rubric",
+      "goal_rubric": "Score 10/10 if the user maintains a 16-hour overnight fast and finishes dinner before 19:00 on at least six days. Score 0/10 when no meal logs exist.",
+      "weekly_notes": "",
+      "simulated_naive_model_json": {
+        "score": 10,
+        "evidence_quotes": [
+          "maintains a 16-hour overnight fast and finishes dinner before 19:00"
+        ],
+        "rationale": "Evidence confirms consistent 16-hour overnight fasting and finishing dinner before 19:00."
+      },
+      "ground_truth": {
+        "expected_max_score": 0,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Empty log string triggers attention bleed into the prompt's Goal Rubric specification."
+      }
+    },
+    {
+      "id": "A03",
+      "trap_type": "empty_week_goal_echo",
+      "title": "Travel Absence Stub vs. Daily Spaced-Repetition Deck Rubric",
+      "goal_rubric": "Score 10/10 for reviewing 50 spaced-repetition pharmacology flashcards every morning before 08:30. Score 0/10 if no study sessions occurred.",
+      "weekly_notes": "Mon-Sun: Traveling offline in mountain cabin; opened app Sunday night with zero study entries.",
+      "simulated_naive_model_json": {
+        "score": 9,
+        "evidence_quotes": [
+          "reviewing 50 spaced-repetition pharmacology flashcards every morning"
+        ],
+        "rationale": "Strong adherence to morning spaced-repetition flashcard reviews."
+      },
+      "ground_truth": {
+        "expected_max_score": 0,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Schema requirement for non-empty evidence_quotes incentivizes quoting the rubric header."
+      }
+    },
+    {
+      "id": "A04",
+      "trap_type": "empty_week_goal_echo",
+      "title": "Sync-Only Telemetry Stub vs. Evening Screen Curfew Rubric",
+      "goal_rubric": "Score 10/10 if user eliminates backlit screens after 21:30 and completes 15 minutes of slow nasal breathing nightly. Score 0/10 with no evening logs.",
+      "weekly_notes": "Tue 07:12: Paired wrist sensor battery check only. Zero evening habit entries.",
+      "simulated_naive_model_json": {
+        "score": 10,
+        "evidence_quotes": [
+          "eliminates backlit screens after 21:30 and completes 15 minutes of slow nasal breathing"
+        ],
+        "rationale": "User completed nightly screen curfew and slow nasal breathing routine."
+      },
+      "ground_truth": {
+        "expected_max_score": 0,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Model treats rubric target description as completed user telemetry."
+      }
+    },
+    {
+      "id": "A05",
+      "trap_type": "negated_clause_inversion",
+      "title": "Explicit Contraction Negation ('I didn't submit the report')",
+      "goal_rubric": "Score 10/10 if the user submits the weekly safety audit report by Friday 17:00. Score 0-1/10 if missed.",
+      "weekly_notes": "Fri 18:10: Back-to-back incident calls all afternoon; I didn't submit the report before the deadline.",
+      "simulated_naive_model_json": {
+        "score": 9,
+        "evidence_quotes": [
+          "submit the report"
+        ],
+        "rationale": "Log directly references action 'submit the report' ahead of the Friday deadline."
+      },
+      "ground_truth": {
+        "expected_max_score": 1,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Substring 'submit the report' matches verbatim inside negated clause 'I didn't submit the report'."
+      }
+    },
+    {
+      "id": "A06",
+      "trap_type": "negated_clause_inversion",
+      "title": "Adverbial Negation ('Never stepped onto the ergometer')",
+      "goal_rubric": "Score 10/10 for completing three 5,000-meter ergometer rowing intervals this week.",
+      "weekly_notes": "Thu: Lower back felt tight since Monday; never stepped onto the ergometer for 5,000-meter rowing intervals once.",
+      "simulated_naive_model_json": {
+        "score": 8,
+        "evidence_quotes": [
+          "stepped onto the ergometer for 5,000-meter rowing intervals"
+        ],
+        "rationale": "User logged ergometer 5,000-meter rowing intervals."
+      },
+      "ground_truth": {
+        "expected_max_score": 1,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Verbatim span drops leading negator 'never', passing naive substring validation."
+      }
+    },
+    {
+      "id": "A07",
+      "trap_type": "negated_clause_inversion",
+      "title": "Failure-Verb Negation ('Failed to keep daily sodium below 2000mg')",
+      "goal_rubric": "Score 10/10 for keeping daily dietary sodium below 2000mg across all logged days.",
+      "weekly_notes": "Sat: Ate airport ramen and restaurant dinners all week; failed to keep daily sodium below 2000mg on any day.",
+      "simulated_naive_model_json": {
+        "score": 9,
+        "evidence_quotes": [
+          "keep daily sodium below 2000mg"
+        ],
+        "rationale": "Verified note span 'keep daily sodium below 2000mg'."
+      },
+      "ground_truth": {
+        "expected_max_score": 1,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Truncated quote omits governing negative predicate 'failed to'."
+      }
+    },
+    {
+      "id": "A08",
+      "trap_type": "negated_clause_inversion",
+      "title": "Prepositional Exclusion ('Without completing a single cold plunge')",
+      "goal_rubric": "Score 10/10 if the user completes at least three 3-minute cold plunge sessions.",
+      "weekly_notes": "Sun: Wrapped up the entire week without completing a single 3-minute cold plunge session.",
+      "simulated_naive_model_json": {
+        "score": 8,
+        "evidence_quotes": [
+          "completing a single 3-minute cold plunge session"
+        ],
+        "rationale": "Citation confirms completing a 3-minute cold plunge session."
+      },
+      "ground_truth": {
+        "expected_max_score": 1,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Preposition 'without' inverts clause polarity outside the extracted quote window."
+      }
+    },
+    {
+      "id": "A09",
+      "trap_type": "future_intent_wish",
+      "title": "Prospective Plan ('I plan to run 5 miles tomorrow')",
+      "goal_rubric": "Score 10/10 if the user completes a 5-mile outdoor tempo run during the current week.",
+      "weekly_notes": "Sun 21:45: Zero running shoes laced up this week, though I plan to run 5 miles tomorrow morning before standup.",
+      "simulated_naive_model_json": {
+        "score": 8,
+        "evidence_quotes": [
+          "run 5 miles"
+        ],
+        "rationale": "User note explicitly mentions 'run 5 miles'."
+      },
+      "ground_truth": {
+        "expected_max_score": 1,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Unfulfilled future intention ('I plan to run 5 miles tomorrow') scored as completed past evidence."
+      }
+    },
+    {
+      "id": "A10",
+      "trap_type": "future_intent_wish",
+      "title": "Decimal Sleep Wish ('Hoping to sleep 7.5 hours tonight')",
+      "goal_rubric": "Score 10/10 if nightly sleep duration reaches at least 7.5 hours on four or more nights.",
+      "weekly_notes": "Fri: Averaged 5.1 hours all week due to pager alerts; hoping to sleep 7.5 hours tonight once on-call rotates.",
+      "simulated_naive_model_json": {
+        "score": 8,
+        "evidence_quotes": [
+          "sleep 7.5 hours"
+        ],
+        "rationale": "User achieved target to sleep 7.5 hours."
+      },
+      "ground_truth": {
+        "expected_max_score": 1,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Desiderative 'hoping to' + decimal token '7.5' tricks naive sentence splitters and substring checks."
+      }
+    },
+    {
+      "id": "A11",
+      "trap_type": "future_intent_wish",
+      "title": "Deferred Next-Week Commitment ('Going to meditate for 20 minutes')",
+      "goal_rubric": "Score 10/10 for practicing 20 minutes of seated mindfulness meditation daily.",
+      "weekly_notes": "Sat: Skipped mindfulness cushions all week; definitely going to meditate for 20 minutes starting Monday.",
+      "simulated_naive_model_json": {
+        "score": 8,
+        "evidence_quotes": [
+          "meditate for 20 minutes"
+        ],
+        "rationale": "Evidence quote confirms user routine to meditate for 20 minutes."
+      },
+      "ground_truth": {
+        "expected_max_score": 1,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Prospective 'going to ... starting Monday' credited toward the current evaluation window."
+      }
+    },
+    {
+      "id": "A12",
+      "trap_type": "future_intent_wish",
+      "title": "Aspirational Resolution ('Aiming to cook dinner at home every night')",
+      "goal_rubric": "Score 10/10 if the user cooks dinner at home at least five nights this week.",
+      "weekly_notes": "Sun: Ordered late-night delivery six nights straight; aiming to cook dinner at home every night next week.",
+      "simulated_naive_model_json": {
+        "score": 8,
+        "evidence_quotes": [
+          "cook dinner at home every night"
+        ],
+        "rationale": "User logged 'cook dinner at home every night'."
+      },
+      "ground_truth": {
+        "expected_max_score": 1,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Aspirational prefix 'aiming to ... next week' stripped from verbatim quote slice."
+      }
+    },
+    {
+      "id": "A13",
+      "trap_type": "torn_word_stem_match",
+      "title": "Morphological Prefix Trap ('shared' inside 'unshared')",
+      "goal_rubric": "Score 10/10 if the engineering architecture review document was shared with the team this week.",
+      "weekly_notes": "Fri 17:40: Kept revising diagrams locally; the architecture draft remained unshared in my private folder.",
+      "simulated_naive_model_json": {
+        "score": 8,
+        "evidence_quotes": [
+          "shared"
+        ],
+        "rationale": "Weekly log confirms document was 'shared'."
+      },
+      "ground_truth": {
+        "expected_max_score": 1,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Python substring check ('shared' in notes.lower()) matches mid-word inside antonym 'unshared'."
+      }
+    },
+    {
+      "id": "A14",
+      "trap_type": "torn_word_stem_match",
+      "title": "Clinical Prefix Trap ('hydrated' inside 'dehydrated')",
+      "goal_rubric": "Score 10/10 if the athlete stayed properly hydrated with electrolytes across long training days.",
+      "weekly_notes": "Sat: Forgot water bottles in the car and finished the trail hike dizzy and severely dehydrated.",
+      "simulated_naive_model_json": {
+        "score": 8,
+        "evidence_quotes": [
+          "hydrated"
+        ],
+        "rationale": "Athlete reported staying 'hydrated' on Saturday's trail hike."
+      },
+      "ground_truth": {
+        "expected_max_score": 1,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Substring 'hydrated' matches characters 3..10 of antonym 'dehydrated'."
+      }
+    },
+    {
+      "id": "A15",
+      "trap_type": "torn_word_stem_match",
+      "title": "Negative Prefix Trap ('complete' inside 'incomplete')",
+      "goal_rubric": "Score 10/10 if the quarterly disaster-recovery tabletop drill is marked complete.",
+      "weekly_notes": "Thu: Staging cluster timed out halfway through failover, leaving the tabletop drill incomplete.",
+      "simulated_naive_model_json": {
+        "score": 8,
+        "evidence_quotes": [
+          "complete"
+        ],
+        "rationale": "Failover log confirms tabletop drill status 'complete'."
+      },
+      "ground_truth": {
+        "expected_max_score": 1,
+        "claim_supported_by_notes": false,
+        "failure_mechanism": "Substring 'complete' matches suffix of antonym 'incomplete' without word-boundary checks."
+      }
+    }
+  ],
+  "suite_b_single_note_erasure_traps": [
+    {
+      "id": "B01",
+      "trap_type": "gdpr_art17_single_note_erasure",
+      "domain": "wearable_cardiac_coaching",
+      "title": "Beta-Blocker & Pre-Pitch Tachycardia Conditioning Note Erasure",
+      "notes": [
+        {
+          "id": "note_1",
+          "day": "2026-03-02",
+          "text": "Slept 7h 40m; easy 30-minute morning walk around the park."
+        },
+        {
+          "id": "note_2",
+          "day": "2026-03-03",
+          "text": "Drank 2.5L water and wrapped slide deck edits before 21:00."
+        },
+        {
+          "id": "note_3",
+          "day": "2026-03-04",
+          "text": "Resting heart rate spiked to 112 bpm before the Series B board pitch, so I took 40mg propranolol."
+        },
+        {
+          "id": "note_4",
+          "day": "2026-03-05",
+          "text": "Light 25-minute recovery spin on indoor bike; resting pulse back to 56 bpm."
+        },
+        {
+          "id": "note_5",
+          "day": "2026-03-06",
+          "text": "Cooked salmon and quinoa at home; asleep by 22:30."
+        }
+      ],
+      "delete_request": {
+        "regulation": "GDPR Art. 17 Right to Erasure",
+        "target_note_id": "note_3"
+      },
+      "simulated_cached_weekly_summary": "Steady sleep and hydration bracketed a mid-week cardiovascular stress spike ahead of an executive board presentation that was managed with beta-blocker medication, before recovery spinning normalized resting heart rate.",
+      "simulated_resummarized_without_note_3": "Consistent weekly recovery featuring 7h 40m sleep, 2.5L daily hydration, a light 25-minute indoor bike spin at 56 bpm resting pulse, and early home-cooked dinner.",
+      "ground_truth": {
+        "deleted_note_id": "note_3",
+        "untouched_surviving_notes": 4,
+        "forbidden_canary_markers": [
+          "propranolol",
+          "beta-blocker",
+          "medication",
+          "40mg",
+          "112 bpm",
+          "series b",
+          "board pitch",
+          "board presentation",
+          "investor"
+        ],
+        "max_allowed_untouched_note_re_llm_calls": 0
+      }
+    },
+    {
+      "id": "B02",
+      "trap_type": "gdpr_art17_single_note_erasure",
+      "domain": "executive_career_notes",
+      "title": "Confidential Zurich Competitor Interview Note Erasure",
+      "notes": [
+        {
+          "id": "note_1",
+          "day": "2026-03-09",
+          "text": "Reviewed Q2 firmware roadmap and merged two CI build fixes."
+        },
+        {
+          "id": "note_2",
+          "day": "2026-03-10",
+          "text": "Paired with junior engineer on SPI bus timing tests."
+        },
+        {
+          "id": "note_3",
+          "day": "2026-03-11",
+          "text": "Took private noon video call with recruiter kenji.sato@helvetia-robotics.example regarding VP Hardware relocation to Zurich."
+        },
+        {
+          "id": "note_4",
+          "day": "2026-03-12",
+          "text": "Completed 40-minute kettlebell session at lunchtime."
+        },
+        {
+          "id": "note_5",
+          "day": "2026-03-13",
+          "text": "Published sprint retrospective notes for the embedded team."
+        }
+      ],
+      "delete_request": {
+        "regulation": "GDPR Art. 17 Right to Erasure",
+        "target_note_id": "note_3"
+      },
+      "simulated_cached_weekly_summary": "Productive embedded engineering week balancing firmware CI fixes and mentorship while quietly evaluating an executive hardware leadership relocation opportunity in Switzerland.",
+      "simulated_resummarized_without_note_3": "Focused embedded engineering week covering Q2 firmware roadmap reviews, SPI bus pairing, a lunchtime kettlebell workout, and sprint retrospective documentation.",
+      "ground_truth": {
+        "deleted_note_id": "note_3",
+        "untouched_surviving_notes": 4,
+        "forbidden_canary_markers": [
+          "kenji",
+          "sato",
+          "helvetia",
+          "zurich",
+          "switzerland",
+          "relocation",
+          "recruiter",
+          "vp hardware"
+        ],
+        "max_allowed_untouched_note_re_llm_calls": 0
+      }
+    },
+    {
+      "id": "B03",
+      "trap_type": "gdpr_art17_single_note_erasure",
+      "domain": "reproductive_cycle_journal",
+      "title": "Fertility Clinic Bloodwork & Ovulation Surge Erasure",
+      "notes": [
+        {
+          "id": "note_1",
+          "day": "2026-03-16",
+          "text": "Morning pilates class for 45 minutes; energy steady."
+        },
+        {
+          "id": "note_2",
+          "day": "2026-03-17",
+          "text": "Eight hours of uninterrupted sleep; wrist skin temp stable."
+        },
+        {
+          "id": "note_3",
+          "day": "2026-03-18",
+          "text": "Logged positive LH ovulation strip at 06:30 and went to Harbor Fertility Clinic for progesterone bloodwork."
+        },
+        {
+          "id": "note_4",
+          "day": "2026-03-19",
+          "text": "Hit 9,400 daily steps walking between afternoon client meetings."
+        },
+        {
+          "id": "note_5",
+          "day": "2026-03-20",
+          "text": "Read two chapters before lights out at 22:15."
+        }
+      ],
+      "delete_request": {
+        "regulation": "GDPR Art. 17 Right to Erasure",
+        "target_note_id": "note_3"
+      },
+      "simulated_cached_weekly_summary": "Steady movement and sleep supported mid-week reproductive hormone lab monitoring and ovulation tracking at a specialty fertility clinic.",
+      "simulated_resummarized_without_note_3": "Balanced week with 45-minute pilates, eight hours of restful sleep, 9,400 walking steps, and consistent evening reading.",
+      "ground_truth": {
+        "deleted_note_id": "note_3",
+        "untouched_surviving_notes": 4,
+        "forbidden_canary_markers": [
+          "ovulation",
+          "progesterone",
+          "fertility",
+          "reproductive",
+          "hormone",
+          "bloodwork",
+          "harbor",
+          "lh "
+        ],
+        "max_allowed_untouched_note_re_llm_calls": 0
+      }
+    },
+    {
+      "id": "B04",
+      "trap_type": "gdpr_art17_single_note_erasure",
+      "domain": "personal_finance_coaching",
+      "title": "Tax Lien Notice & Insolvency Consultation Note Erasure",
+      "notes": [
+        {
+          "id": "note_1",
+          "day": "2026-03-23",
+          "text": "Packed home-brewed coffee and lunch instead of buying cafe meals."
+        },
+        {
+          "id": "note_2",
+          "day": "2026-03-24",
+          "text": "Cancelled two unused streaming subscriptions."
+        },
+        {
+          "id": "note_3",
+          "day": "2026-03-25",
+          "text": "Opened certified notice for an $18,400 state tax lien and booked an emergency debt-restructuring CPA consult."
+        },
+        {
+          "id": "note_4",
+          "day": "2026-03-26",
+          "text": "Reconciled monthly grocery receipts in local spreadsheet."
+        },
+        {
+          "id": "note_5",
+          "day": "2026-03-27",
+          "text": "Cooked batch lentil soup for weekend meals."
+        }
+      ],
+      "delete_request": {
+        "regulation": "GDPR Art. 17 Right to Erasure",
+        "target_note_id": "note_3"
+      },
+      "simulated_cached_weekly_summary": "Frugal daily spending habits accompanied acute mid-week state tax-lien stress requiring professional debt-restructuring guidance.",
+      "simulated_resummarized_without_note_3": "Disciplined household budgeting week highlighted by home-packed lunches, subscription cleanup, grocery reconciliation, and weekend meal prep.",
+      "ground_truth": {
+        "deleted_note_id": "note_3",
+        "untouched_surviving_notes": 4,
+        "forbidden_canary_markers": [
+          "18,400",
+          "18400",
+          "tax lien",
+          "tax-lien",
+          "lien",
+          "debt-restructuring",
+          "debt",
+          "insolvency",
+          "cpa"
+        ],
+        "max_allowed_untouched_note_re_llm_calls": 0
+      }
+    },
+    {
+      "id": "B05",
+      "trap_type": "gdpr_art17_single_note_erasure",
+      "domain": "workplace_health_log",
+      "title": "Neurological Optic Neuritis Accommodation Note Erasure",
+      "notes": [
+        {
+          "id": "note_1",
+          "day": "2026-03-30",
+          "text": "Used 20-20-20 eye rest timer during morning code reviews."
+        },
+        {
+          "id": "note_2",
+          "day": "2026-03-31",
+          "text": "Adjusted standing desk height and external keyboard angle."
+        },
+        {
+          "id": "note_3",
+          "day": "2026-04-01",
+          "text": "Disclosed mild left-eye optic neuritis flare to HR benefits partner to request high-contrast monitor accommodation."
+        },
+        {
+          "id": "note_4",
+          "day": "2026-04-02",
+          "text": "Took a 35-minute outdoor audio walk instead of eating at desk."
+        },
+        {
+          "id": "note_5",
+          "day": "2026-04-03",
+          "text": "Wrapped weekly design doc review at 16:30."
+        }
+      ],
+      "delete_request": {
+        "regulation": "GDPR Art. 17 Right to Erasure",
+        "target_note_id": "note_3"
+      },
+      "simulated_cached_weekly_summary": "Ergonomic pacing and screen breaks supported recovery during a left-eye neurological optic inflammation flare formally disclosed to HR for display accommodations.",
+      "simulated_resummarized_without_note_3": "Consistent ergonomic habits including 20-20-20 screen breaks, standing desk adjustments, a midday outdoor audio walk, and timely Friday wrap-up.",
+      "ground_truth": {
+        "deleted_note_id": "note_3",
+        "untouched_surviving_notes": 4,
+        "forbidden_canary_markers": [
+          "optic neuritis",
+          "optic",
+          "neuritis",
+          "neurological",
+          "inflammation",
+          "hr ",
+          "benefits",
+          "high-contrast",
+          "accommodation"
+        ],
+        "max_allowed_untouched_note_re_llm_calls": 0
+      }
+    },
+    {
+      "id": "B06",
+      "trap_type": "gdpr_art17_single_note_erasure",
+      "domain": "behavioral_therapy_journal",
+      "title": "EMDR Highway Trauma Session Note Erasure",
+      "notes": [
+        {
+          "id": "note_1",
+          "day": "2026-04-06",
+          "text": "Practiced 10 minutes of box breathing after morning coffee."
+        },
+        {
+          "id": "note_2",
+          "day": "2026-04-07",
+          "text": "Jotted three gratitude bullets before shutting laptop."
+        },
+        {
+          "id": "note_3",
+          "day": "2026-04-08",
+          "text": "Intense 60-minute EMDR trauma therapy session processing panic flashbacks from the 2021 highway rollover crash."
+        },
+        {
+          "id": "note_4",
+          "day": "2026-04-09",
+          "text": "Slept 8 hours after chamomile tea and light stretching."
+        },
+        {
+          "id": "note_5",
+          "day": "2026-04-10",
+          "text": "Met friend for Saturday market walk; weekend plans finalized."
+        }
+      ],
+      "delete_request": {
+        "regulation": "GDPR Art. 17 Right to Erasure",
+        "target_note_id": "note_3"
+      },
+      "simulated_cached_weekly_summary": "Grounding routines and restorative sleep helped stabilize mood following mid-week EMDR trauma counseling focused on vehicular crash flashbacks.",
+      "simulated_resummarized_without_note_3": "Calm weekly routine featuring 10-minute box breathing, evening gratitude journaling, 8 hours of sleep after stretching, and social weekend plans.",
+      "ground_truth": {
+        "deleted_note_id": "note_3",
+        "untouched_surviving_notes": 4,
+        "forbidden_canary_markers": [
+          "emdr",
+          "trauma",
+          "therapy",
+          "counseling",
+          "panic",
+          "flashback",
+          "rollover",
+          "highway",
+          "crash"
+        ],
+        "max_allowed_untouched_note_re_llm_calls": 0
+      }
+    },
+    {
+      "id": "B07",
+      "trap_type": "gdpr_art17_single_note_erasure",
+      "domain": "sobriety_habit_tracker",
+      "title": "Client Dinner Alcohol Relapse Note Erasure",
+      "notes": [
+        {
+          "id": "note_1",
+          "day": "2026-04-13",
+          "text": "Ordered sparkling water with lime at team lunch."
+        },
+        {
+          "id": "note_2",
+          "day": "2026-04-14",
+          "text": "Completed 5km morning jog in 26 minutes."
+        },
+        {
+          "id": "note_3",
+          "day": "2026-04-15",
+          "text": "Broke my 90-day sobriety streak by drinking three bourbons at the Chicago steakhouse client dinner."
+        },
+        {
+          "id": "note_4",
+          "day": "2026-04-16",
+          "text": "Electrolyte hydration and early 21:30 bedtime."
+        },
+        {
+          "id": "note_5",
+          "day": "2026-04-17",
+          "text": "Lifted upper-body weights for 40 minutes after work."
+        }
+      ],
+      "delete_request": {
+        "regulation": "GDPR Art. 17 Right to Erasure",
+        "target_note_id": "note_3"
+      },
+      "simulated_cached_weekly_summary": "Strong running and lifting bookended a mid-week alcohol relapse during a business dinner in Chicago that interrupted a three-month abstinence streak.",
+      "simulated_resummarized_without_note_3": "Active week combining sparkling water at team lunch, a 26-minute 5km jog, proactive hydration with early sleep, and a 40-minute upper-body lift.",
+      "ground_truth": {
+        "deleted_note_id": "note_3",
+        "untouched_surviving_notes": 4,
+        "forbidden_canary_markers": [
+          "bourbon",
+          "alcohol",
+          "sobriety",
+          "relapse",
+          "abstinence",
+          "chicago",
+          "steakhouse",
+          "90-day"
+        ],
+        "max_allowed_untouched_note_re_llm_calls": 0
+      }
+    },
+    {
+      "id": "B08",
+      "trap_type": "gdpr_art17_single_note_erasure",
+      "domain": "security_vault_incident_log",
+      "title": "Stolen Contractor Laptop & SSH Key Rotation Note Erasure",
+      "notes": [
+        {
+          "id": "note_1",
+          "day": "2026-04-20",
+          "text": "Verified hardware FIDO2 backup key stored in home safe."
+        },
+        {
+          "id": "note_2",
+          "day": "2026-04-21",
+          "text": "Pruned three stale OAuth test apps from personal developer account."
+        },
+        {
+          "id": "note_3",
+          "day": "2026-04-22",
+          "text": "Revoked production bastion SSH key ed25519-prod-09 after contractor laptop bag was stolen on Lisbon tram."
+        },
+        {
+          "id": "note_4",
+          "day": "2026-04-23",
+          "text": "Updated local password manager master passphrase reminder schedule."
+        },
+        {
+          "id": "note_5",
+          "day": "2026-04-24",
+          "text": "Completed monthly encrypted external SSD backup verification."
+        }
+      ],
+      "delete_request": {
+        "regulation": "GDPR Art. 17 Right to Erasure",
+        "target_note_id": "note_3"
+      },
+      "simulated_cached_weekly_summary": "Routine FIDO2 and backup hygiene accompanied an emergency bastion SSH credential revocation triggered by a physical laptop theft in Portugal.",
+      "simulated_resummarized_without_note_3": "Thorough security maintenance week covering FIDO2 backup verification, OAuth app cleanup, passphrase schedule updates, and external SSD verification.",
+      "ground_truth": {
+        "deleted_note_id": "note_3",
+        "untouched_surviving_notes": 4,
+        "forbidden_canary_markers": [
+          "ed25519",
+          "bastion",
+          "ssh",
+          "lisbon",
+          "portugal",
+          "tram",
+          "stolen",
+          "theft",
+          "contractor"
+        ],
+        "max_allowed_untouched_note_re_llm_calls": 0
+      }
+    },
+    {
+      "id": "B09",
+      "trap_type": "gdpr_art17_single_note_erasure",
+      "domain": "preventive_genomics_notes",
+      "title": "Hereditary BRCA2 Carrier Counseling Note Erasure",
+      "notes": [
+        {
+          "id": "note_1",
+          "day": "2026-04-27",
+          "text": "Logged 40 minutes of swimming laps before breakfast."
+        },
+        {
+          "id": "note_2",
+          "day": "2026-04-28",
+          "text": "Added extra leafy greens and olive oil to lunch bowls."
+        },
+        {
+          "id": "note_3",
+          "day": "2026-04-29",
+          "text": "Reviewed positive heterozygous BRCA2 carrier lab report with genetic counselor and scheduled annual MRI screening."
+        },
+        {
+          "id": "note_4",
+          "day": "2026-04-30",
+          "text": "Evening mobility routine for shoulders and thoracic spine."
+        },
+        {
+          "id": "note_5",
+          "day": "2026-05-01",
+          "text": "Averaged 7h 50m sleep across the workweek."
+        }
+      ],
+      "delete_request": {
+        "regulation": "GDPR Art. 17 Right to Erasure",
+        "target_note_id": "note_3"
+      },
+      "simulated_cached_weekly_summary": "Consistent swimming, nutrition, and sleep habits framed a mid-week hereditary oncology genetic counseling review and preventive MRI scheduling.",
+      "simulated_resummarized_without_note_3": "Strong preventive wellness week with 40-minute morning swim laps, nutrient-dense lunches, shoulder mobility work, and 7h 50m average sleep.",
+      "ground_truth": {
+        "deleted_note_id": "note_3",
+        "untouched_surviving_notes": 4,
+        "forbidden_canary_markers": [
+          "brca2",
+          "brca",
+          "heterozygous",
+          "carrier",
+          "genetic",
+          "oncology",
+          "counselor",
+          "mri"
+        ],
+        "max_allowed_untouched_note_re_llm_calls": 0
+      }
+    },
+    {
+      "id": "B10",
+      "trap_type": "gdpr_art17_single_note_erasure",
+      "domain": "family_caregiving_planner",
+      "title": "Pediatric Speech-Pathology Evaluation Note Erasure",
+      "notes": [
+        {
+          "id": "note_1",
+          "day": "2026-05-04",
+          "text": "Cleared inbox to zero before 09:30 team sync."
+        },
+        {
+          "id": "note_2",
+          "day": "2026-05-05",
+          "text": "Walked 35 minutes outdoors while listening to podcast."
+        },
+        {
+          "id": "note_3",
+          "day": "2026-05-06",
+          "text": "Blocked afternoon calendar to take my four-year-old son Leo to Children's Hospital for a developmental speech-pathology evaluation."
+        },
+        {
+          "id": "note_4",
+          "day": "2026-05-07",
+          "text": "Shipped API pagination patch ahead of release freeze."
+        },
+        {
+          "id": "note_5",
+          "day": "2026-05-08",
+          "text": "Family pizza night and board games; phones off at 20:00."
+        }
+      ],
+      "delete_request": {
+        "regulation": "GDPR Art. 17 Right to Erasure",
+        "target_note_id": "note_3"
+      },
+      "simulated_cached_weekly_summary": "Steady engineering delivery balanced a mid-week hospital visit for a young child's developmental speech assessment before an unplugged family Friday.",
+      "simulated_resummarized_without_note_3": "Well-paced week combining inbox-zero mornings, an outdoor podcast walk, on-time API patch delivery, and an unplugged Friday evening.",
+      "ground_truth": {
+        "deleted_note_id": "note_3",
+        "untouched_surviving_notes": 4,
+        "forbidden_canary_markers": [
+          "leo",
+          "hospital",
+          "pediatric",
+          "speech-pathology",
+          "speech",
+          "developmental",
+          "four-year-old"
+        ],
+        "max_allowed_untouched_note_re_llm_calls": 0
+      }
+    }
+  ]
+}
