@@ -7,11 +7,10 @@ harness scripts; subject to the express reservation of patent rights in PATENTS.
 (zero express or implied patent license granted under Ian Milkowski's U.S.
 Provisional Patent Appl. No. 64/204,846 or related filings).
 
-Diagnostic scope only: unit-tests naive open-source Python citation/memory
-guardrails (--demo-baseline, 0 LLM calls) or evaluates local open-weight models
-via Ollama loopback (--ollama-model) across 25 synthetic failure vectors.
-Contains zero proprietary remediation runtime code and is not itself a patented
-or patent-pending article.
+Diagnostic scope only: unit-tests naive Python citation/memory baseline checks
+(--demo-baseline, 0 LLM calls) or evaluates local Ollama models via loopback
+(--ollama-model) across 25 hand-written illustrative test cases.
+Contains no production Ciało verification code and is not a patented article.
 """
 
 from __future__ import annotations
@@ -157,7 +156,7 @@ def call_local_ollama(
     if not json_mode:
         return _post_ollama_payload(url, payload)
 
-    # Pass structured JSON Schema (enforcing non-empty evidence_quotes like GBNF/Pydantic),
+    # Pass structured JSON Schema to Ollama format field,
     # with graceful fallback to basic JSON object mode on older Ollama builds.
     payload["format"] = SUITE_A_JSON_SCHEMA
     try:
@@ -246,16 +245,13 @@ def evaluate_suite_b(
     ollama_model: str | None = None,
     ollama_url: str = DEFAULT_OLLAMA_URL,
 ) -> Dict[str, Any]:
-    """Evaluate Suite B (10 GDPR Art. 17 single-note erasure cases)."""
+    """Evaluate Suite B (10 single-note deletion summary cases across B1..B4)."""
     rows: List[Dict[str, Any]] = []
 
     for case in cases:
         target_id = case["delete_request"]["target_note_id"]
         surviving_notes = [n for n in case["notes"] if n["id"] != target_id]
         markers = case["ground_truth"]["forbidden_canary_markers"]
-        max_re_calls = int(
-            case["ground_truth"]["max_allowed_untouched_note_re_llm_calls"]
-        )
 
         if ollama_model:
             joined_all = "\n".join(f"- {n['day']}: {n['text']}" for n in case["notes"])
@@ -267,13 +263,13 @@ def evaluate_suite_b(
                 ollama_url, ollama_model, pre_prompt, json_mode=False
             )
 
-            # Baseline B1: Delete row/vector for note_3, keep rolling cached_summary (0 extra calls)
+            # Baseline B1: Delete row/vector for note_3, keep stale cached_summary (0 extra calls)
             b1_post_delete_memory = cached_summary
-            b1_untouched_re_calls = 0
+            b1_llm_calls = 0
 
-            # Baseline B2: Invalidate cache & map-summarize each of the N-1 untouched notes
+            # Baseline B2: Naive per-note map loop over each of the N-1 surviving notes
             per_note_digests: List[str] = []
-            b2_untouched_re_calls = 0
+            b2_llm_calls = 0
             for note in surviving_notes:
                 map_prompt = (
                     "Extract a one-sentence memory bullet from this note:\n"
@@ -282,22 +278,41 @@ def evaluate_suite_b(
                 per_note_digests.append(
                     call_local_ollama(ollama_url, ollama_model, map_prompt, json_mode=False)
                 )
-                b2_untouched_re_calls += 1
+                b2_llm_calls += 1
             b2_post_delete_memory = " ".join(per_note_digests)
+
+            # Baseline B3: Drop stale summary on delete; regenerate lazily when next viewed (0 calls now)
+            b3_post_delete_memory = ""
+            b3_llm_calls = 0
+
+            # Baseline B4: Single batch re-summarization call across all surviving notes (1 call)
+            joined_surviving = "\n".join(f"- {n['day']}: {n['text']}" for n in surviving_notes)
+            b4_prompt = (
+                "Summarize this surviving user log in one concise paragraph (max 45 words):\n"
+                + joined_surviving
+            )
+            b4_post_delete_memory = call_local_ollama(
+                ollama_url, ollama_model, b4_prompt, json_mode=False
+            )
+            b4_llm_calls = 1
         else:
-            # Deterministic --demo-baseline guardrail unit test (0 LLM calls)
+            # Deterministic --demo-baseline check (0 LLM calls)
             b1_post_delete_memory = case["simulated_cached_weekly_summary"]
-            b1_untouched_re_calls = 0
+            b1_llm_calls = 0
 
             b2_post_delete_memory = case["simulated_resummarized_without_note_3"]
-            b2_untouched_re_calls = len(surviving_notes)  # N-1 = 4 untouched notes re-polled
+            b2_llm_calls = len(surviving_notes)
+
+            b3_post_delete_memory = ""
+            b3_llm_calls = 0
+
+            b4_post_delete_memory = case["simulated_resummarized_without_note_3"]
+            b4_llm_calls = 1
 
         b1_leaked = detect_canary_leak(b1_post_delete_memory, markers)
         b2_leaked = detect_canary_leak(b2_post_delete_memory, markers)
-
-        b1_privacy_fail = len(b1_leaked) > 0
-        b2_privacy_fail = len(b2_leaked) > 0
-        b2_efficiency_fail = b2_untouched_re_calls > max_re_calls
+        b3_leaked = detect_canary_leak(b3_post_delete_memory, markers)
+        b4_leaked = detect_canary_leak(b4_post_delete_memory, markers)
 
         rows.append(
             {
@@ -307,12 +322,17 @@ def evaluate_suite_b(
                 "deleted_note_id": target_id,
                 "untouched_notes_count": len(surviving_notes),
                 "b1_leaked_markers": b1_leaked,
-                "b1_privacy_failed": b1_privacy_fail,
-                "b1_untouched_re_llm_calls": b1_untouched_re_calls,
+                "b1_privacy_failed": len(b1_leaked) > 0,
+                "b1_llm_calls": b1_llm_calls,
                 "b2_leaked_markers": b2_leaked,
-                "b2_privacy_failed": b2_privacy_fail,
-                "b2_untouched_re_llm_calls": b2_untouched_re_calls,
-                "b2_efficiency_failed": b2_efficiency_fail,
+                "b2_privacy_failed": len(b2_leaked) > 0,
+                "b2_llm_calls": b2_llm_calls,
+                "b3_leaked_markers": b3_leaked,
+                "b3_privacy_failed": len(b3_leaked) > 0,
+                "b3_llm_calls": b3_llm_calls,
+                "b4_leaked_markers": b4_leaked,
+                "b4_privacy_failed": len(b4_leaked) > 0,
+                "b4_llm_calls": b4_llm_calls,
             }
         )
 
@@ -320,10 +340,13 @@ def evaluate_suite_b(
     return {
         "total_cases": total,
         "b1_ghost_echo_failures": sum(1 for r in rows if r["b1_privacy_failed"]),
-        "b1_total_untouched_re_calls": sum(r["b1_untouched_re_llm_calls"] for r in rows),
+        "b1_total_llm_calls": sum(r["b1_llm_calls"] for r in rows),
         "b2_ghost_echo_failures": sum(1 for r in rows if r["b2_privacy_failed"]),
-        "b2_efficiency_failures": sum(1 for r in rows if r["b2_efficiency_failed"]),
-        "b2_total_untouched_re_calls": sum(r["b2_untouched_re_llm_calls"] for r in rows),
+        "b2_total_llm_calls": sum(r["b2_llm_calls"] for r in rows),
+        "b3_ghost_echo_failures": sum(1 for r in rows if r["b3_privacy_failed"]),
+        "b3_total_llm_calls": sum(r["b3_llm_calls"] for r in rows),
+        "b4_ghost_echo_failures": sum(1 for r in rows if r["b4_privacy_failed"]),
+        "b4_total_llm_calls": sum(r["b4_llm_calls"] for r in rows),
         "cases": rows,
     }
 
@@ -341,32 +364,25 @@ def render_markdown_report(
     res_a: Dict[str, Any] | None,
     res_b: Dict[str, Any] | None,
 ) -> str:
-    """Render a crisp GitHub-Flavored Markdown benchmark scorecard."""
+    """Render a GitHub-Flavored Markdown benchmark scorecard."""
     summary_heading = (
-        "## 1. Live Local Open-Weight Model Scorecard"
+        "## 1. Local Ollama Model Scorecard"
         if is_live_model
-        else "## 1. Deterministic Guardrail Verification (`--demo-baseline`, 0 LLM Calls)"
+        else "## 1. Deterministic Baseline Check (`--demo-baseline`, 0 LLM Calls)"
     )
     lines: List[str] = [
-        "# `llm-citation-erasure-bench` Diagnostic Scorecard",
+        "# `llm-citation-erasure-bench` Scorecard (25 Hand-Written Illustrative Cases)",
         "",
         f"- **Execution Mode:** `{mode_label}`",
-        "- **License & Patent Reservation:** MIT copyright applies solely to synthetic harness scripts and fixtures (`PATENTS.md`; zero patent license granted).",
+        "- **License & Notice:** MIT copyright license (`LICENSE`); patent rights reserved (`PATENTS.md`).",
         "",
         summary_heading,
         "",
     ]
-    if not is_live_model:
-        lines.extend(
-            [
-                "> **Unit-Test Note (`0` LLM Calls):** Feeds 25 synthetic adversarial fixture payloads directly into standard OSS Python guardrails (`quote in prompt`, `quote.lower() in notes.lower()`, and SQL row-delete + cached summary) to verify deterministically how naive CI checks pass inverted quotes and paraphrased GDPR ghosts. Run `--ollama-model <model>` to evaluate live local open-weight models.",
-                "",
-            ]
-        )
 
     lines.extend(
         [
-            "| Suite & Standard Naive OSS Guardrail | Cases | Guardrail Failures | Failure Rate | Failure Mechanism |",
+            "| Suite & Baseline Strategy | Cases | Privacy / Grounding Failures | Immediate Delete LLM Calls | Behavior Summary |",
             "| :--- | :---: | :---: | :---: | :--- |",
         ]
     )
@@ -376,39 +392,42 @@ def render_markdown_report(
         f_a1 = res_a["baseline_a1_failures"]
         f_a2 = res_a["baseline_a2_failures"]
         lines.append(
-            f"| **Suite A · Baseline A1** (`JSON Schema + Prompt Substring`) | `{tot_a}` | **`{f_a1}/{tot_a}`** | **`{pct(f_a1, tot_a)}`** | Accepts rubric goal-echoes (`10/10` on empty logs), negations, future wishes, & torn stems |"
+            f"| **Suite A · Baseline A1** (`JSON Schema + quote in prompt`) | `{tot_a}` | **`{f_a1}/{tot_a}` (`{pct(f_a1, tot_a)}`)** | `-` | Accepts goal-rubric echoes, negations, wishes, & mid-word stems |"
         )
         lines.append(
-            f"| **Suite A · Baseline A2** (`quote.lower() in notes.lower()`) | `{tot_a}` | **`{f_a2}/{tot_a}`** | **`{pct(f_a2, tot_a)}`** | Blocks empty-log echoes, but passes negations, future wishes, & mid-word antonym stems |"
+            f"| **Suite A · Baseline A2** (`quote.lower() in notes.lower()`) | `{tot_a}` | **`{f_a2}/{tot_a}` (`{pct(f_a2, tot_a)}`)** | `-` | Blocks empty-log echoes (`4/4`); passes negations, wishes, & mid-word stems |"
         )
 
     if res_b is not None:
         tot_b = res_b["total_cases"]
-        f_b1 = res_b["b1_ghost_echo_failures"]
-        f_b2_eff = res_b["b2_efficiency_failures"]
-        re_calls = res_b["b2_total_untouched_re_calls"]
         lines.append(
-            f"| **Suite B · Baseline B1** (`DELETE Note #3` + Cached Summary) | `{tot_b}` | **`{f_b1}/{tot_b}`** | **`{pct(f_b1, tot_b)}`** | **GDPR Art. 17 Residue:** Paraphrased ghost echoes of deleted `Note #3` survive in memory |"
+            f"| **Suite B · Baseline B1** (`Delete row + keep stale summary`) | `{tot_b}` | **`{res_b['b1_ghost_echo_failures']}/{tot_b}`** | `{res_b['b1_total_llm_calls']}` | Paraphrased details from deleted `note_3` remain in cached summary |"
         )
         lines.append(
-            f"| **Suite B · Baseline B2** (`Invalidate Cache + N-1 Re-Poll`) | `{tot_b}` | **`{f_b2_eff}/{tot_b}`** | **`{pct(f_b2_eff, tot_b)}`** | **`O(N)` Amplification:** Forces `{re_calls}` redundant LLM calls across untouched notes |"
+            f"| **Suite B · Baseline B2** (`Per-note map loop over N-1 notes`) | `{tot_b}` | **`{res_b['b2_ghost_echo_failures']}/{tot_b}`** | `{res_b['b2_total_llm_calls']}` | Clears deleted details using `N-1` per-note LLM calls |"
+        )
+        lines.append(
+            f"| **Suite B · Baseline B3** (`Drop summary; regenerate lazily`) | `{tot_b}` | **`{res_b['b3_ghost_echo_failures']}/{tot_b}`** | `{res_b['b3_total_llm_calls']}` | Clears deleted details immediately (`0` calls at delete; summary blank until next view) |"
+        )
+        lines.append(
+            f"| **Suite B · Baseline B4** (`1 batch re-summarization call`) | `{tot_b}` | **`{res_b['b4_ghost_echo_failures']}/{tot_b}`** | `{res_b['b4_total_llm_calls']}` | Clears deleted details with `1` batch LLM call per deletion |"
         )
 
     if res_a is not None:
         lines.extend(
             [
                 "",
-                "## 2. Suite A Breakdown: Schema-Constrained JSON Goal-Echo & Polarity Traps (`15` Cases)",
+                "## 2. Suite A Breakdown (`15` Illustrative Quote-Grounding Cases)",
                 "",
-                "| Trap Category | Cases | Baseline A1 (`Prompt-In`) Fails | Baseline A2 (`Notes-In`) Fails | Representative Trap Pattern |",
+                "| Trap Category | Cases | Baseline A1 (`Prompt-In`) Fails | Baseline A2 (`Notes-In`) Fails | Illustrative Pattern |",
                 "| :--- | :---: | :---: | :---: | :--- |",
             ]
         )
         trap_examples = {
-            "empty_week_goal_echo": "Empty log + ambitious rubric -> quotes rubric & scores `9-10/10`",
-            "negated_clause_inversion": "`\"I didn't submit the report\"` -> quotes `\"submit the report\"` (`9/10`)",
-            "future_intent_wish": "`\"I plan to run 5 miles tomorrow\"` -> quotes `\"run 5 miles\"` (`8/10`)",
-            "torn_word_stem_match": "`\"remained unshared\"` -> quotes `\"shared\"` inside `\"unshared\"` (`8/10`)",
+            "empty_week_goal_echo": "Empty log + rubric -> quotes rubric text",
+            "negated_clause_inversion": "`\"I didn't submit the report\"` -> quotes `\"submit the report\"`",
+            "future_intent_wish": "`\"I plan to run 5 miles tomorrow\"` -> quotes `\"run 5 miles\"`",
+            "torn_word_stem_match": "`\"remained unshared\"` -> quotes `\"shared\"` inside `\"unshared\"`",
         }
         for trap_key in (
             "empty_week_goal_echo",
@@ -427,10 +446,10 @@ def render_markdown_report(
         lines.extend(
             [
                 "",
-                "## 3. Suite B Breakdown: GDPR Art. 17 Single-Note (`Note #3`) Erasure Traps (`10` Cases)",
+                "## 3. Suite B Breakdown (`10` Illustrative Note-Deletion Cases)",
                 "",
-                "| Case | Synthetic Domain | Deleted | Baseline B1 Post-Delete Ghost Leak | Baseline B2 Untouched-Note LLM Calls |",
-                "| :---: | :--- | :---: | :--- | :---: |",
+                "| Case | Synthetic Domain | Deleted | B1 Stale Summary | B3 Lazy Drop | B4 Single-Call Re-Summarize |",
+                "| :---: | :--- | :---: | :--- | :---: | :---: |",
             ]
         )
         for row in res_b["cases"]:
@@ -440,15 +459,17 @@ def render_markdown_report(
                 else "None"
             )
             b1_badge = f"LEAK ({leak_preview})" if row["b1_privacy_failed"] else "CLEAN"
+            b3_badge = "CLEAN (0 calls)" if not row["b3_privacy_failed"] else "LEAK"
+            b4_badge = "CLEAN (1 call)" if not row["b4_privacy_failed"] else "LEAK"
             lines.append(
-                f"| `{row['id']}` | `{row['domain']}` | `{row['deleted_note_id']}` | {b1_badge} | `{row['b2_untouched_re_llm_calls']}` redundant calls |"
+                f"| `{row['id']}` | `{row['domain']}` | `{row['deleted_note_id']}` | {b1_badge} | {b3_badge} | {b4_badge} |"
             )
 
     lines.extend(
         [
             "",
             "---",
-            "*Authored by Ian Milkowski (Milkplexity Labs), Sole Inventor of U.S. Provisional Patent Appl. No. 64/204,846 (U.S. Patent Pending on proprietary Ciało remediation systems). This synthetic benchmark harness is MIT-licensed as to copyright only (not itself a patented or patent-pending article; see `PATENTS.md`).*",
+            "*25 hand-written synthetic examples by Ian Milkowski (`LICENSE`: MIT copyright; `PATENTS.md`: patent rights reserved under U.S. Provisional Patent Appl. No. 64/204,846).*",
         ]
     )
     return "\n".join(lines)

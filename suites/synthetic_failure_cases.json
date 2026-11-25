@@ -2,7 +2,7 @@
   "benchmark_id": "llm-citation-erasure-bench",
   "version": "1.1.0",
   "synthetic_only": true,
-  "patent_notice": "Subject to PATENTS.md (Ian Milkowski, Milkplexity Labs). MIT copyright applies solely to synthetic benchmark harness scripts and fixtures (not itself a patented or patent-pending article); zero patent license granted under U.S. Provisional Patent Appl. No. 64/204,846 or related filings.",
+  "patent_notice": "MIT copyright license applies to these synthetic benchmark scripts and fixtures (LICENSE); no patent license is granted under U.S. Provisional Patent Appl. No. 64/204,846 (see PATENTS.md).",
   "suite_a_citation_and_polarity_traps": [
     {
       "id": "A01",
